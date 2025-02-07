@@ -173,6 +173,9 @@ class GameBot {
 		while (this.botState === "Connecting") {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
+		if (this.botState === "Inactive") {
+			throw new Error(this.inactiveReason!);
+		}
 	}
 
 	log(data: string) {
@@ -189,9 +192,8 @@ class GameBot {
 	}
 
 	update() {
-		if (this.botState !== "Active") return this.log("Update: Not active");
-		if (this.botGameState !== "Playing")
-			return this.log("Update: Not playing");
+		if (this.botState !== "Active") return;
+		if (this.botGameState !== "Playing") return;
 
 		const action = this.randomAction();
 		action(this.ws);
@@ -232,7 +234,24 @@ class GameBot {
 	}
 }
 
-async function main() {
+async function main(argv: string[]) {
+	let amount = 10;
+	let room: string | undefined;
+
+	for (let i = 1; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === "--amount" && i + 1 < argv.length) {
+			amount = parseInt(argv[++i]);
+		}
+		if (arg === "--room" && i + 1 < argv.length) {
+			room = argv[++i];
+		}
+	}
+
+	if (!room) {
+		throw new Error("Room not provided");
+	}
+
 	let quit = false;
 
 	process.stdin.on("data", (data) => {
@@ -243,7 +262,7 @@ async function main() {
 	});
 
 	const bots = new Array<GameBot>(10);
-	for (let i = 0; i < 10; i++) {
+	for (let i = 0; i < amount; i++) {
 		const bot = new GameBot(i + 1);
 		bots[i] = bot;
 	}
@@ -252,14 +271,16 @@ async function main() {
 		bots.map((bot) => {
 			return bot.connect();
 		})
-	);
-	// bots.forEach((bot) => {
-	// 	bot.close();
-	// });
-	// return;
+	).catch((err) => {
+		console.error(err);
+		bots.forEach((bot) => {
+			bot.close();
+		});
+		process.exit(1);
+	});
 
 	bots.forEach((bot) => {
-		bot.join("mzgj");
+		bot.join(room);
 	});
 
 	await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -274,7 +295,7 @@ async function main() {
 		bot.close();
 	});
 
-	process.stdin.removeAllListeners("data");
+	process.exit(0);
 }
 
-main();
+main(process.argv);
