@@ -2,12 +2,11 @@ import { GameBot } from "./bot";
 import { RandomStrategy } from "./strategies";
 
 const WS_URL = "ws://localhost:3000/ws";
-const TicksPerSecond = 60;
-const TickTime = 1000 / TicksPerSecond;
 
 async function main(argv: string[]) {
 	let amount = 10;
 	let room: string | undefined;
+	let TicksPerSecond = 60;
 
 	for (let i = 1; i < argv.length; i++) {
 		const arg = argv[i];
@@ -17,12 +16,25 @@ async function main(argv: string[]) {
 		if (arg === "--room" && i + 1 < argv.length) {
 			room = argv[++i];
 		}
+		if ((arg === "--tps" || arg === "--ticks") && i + 1 < argv.length) {
+			TicksPerSecond = parseInt(argv[++i]);
+			if (TicksPerSecond < 1) {
+				console.log("Clamping ticks to 1. Bro Seriously WTF!");
+				TicksPerSecond = 1;
+			} else if (TicksPerSecond > 120) {
+				console.log(
+					"Clamping ticks to 120. We are not hogging NASA computers!"
+				);
+				TicksPerSecond = 120;
+			}
+		}
 	}
 
 	if (!room) {
 		throw new Error("Room not provided");
 	}
 
+	const TickTime = 1000 / TicksPerSecond;
 	let quit = false;
 
 	process.stdin.on("data", (data) => {
