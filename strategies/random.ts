@@ -1,7 +1,7 @@
 import { Action, BotStrategy, BotStrategyContext } from ".";
+import { directions } from "../consts";
 
 const actions = ["move", "stop", "shoot", "look"];
-const directions = ["left", "right", "up", "down"] as const;
 
 export class RandomStrategy implements BotStrategy {
 	name = "Random";

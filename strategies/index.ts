@@ -1,13 +1,14 @@
+import { Direction } from "../consts";
 import { MapMessage, StateMessage } from "../msgs";
 
 type MoveAction = {
 	type: "move";
-	direction: "left" | "right" | "up" | "down";
+	direction: Direction;
 };
 
 type StopAction = {
 	type: "stop";
-	direction: "left" | "right" | "up" | "down";
+	direction: Direction;
 };
 
 type ShootAction = {
@@ -19,10 +20,19 @@ type LookAction = {
 	at: { x: number; y: number };
 };
 
-export type Action = MoveAction | StopAction | ShootAction | LookAction;
+type IdleAction = {
+	type: "idle";
+};
+
+export type Action =
+	| MoveAction
+	| StopAction
+	| ShootAction
+	| LookAction
+	| IdleAction;
 
 export type BotStrategyContext = {
-	id: number;
+	id: number; // bot player id
 	map: MapMessage;
 	state: StateMessage;
 };
@@ -33,3 +43,4 @@ export interface BotStrategy {
 }
 
 export * from "./random";
+export * from "./easy";

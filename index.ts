@@ -1,5 +1,5 @@
 import { GameBot } from "./bot";
-import { RandomStrategy } from "./strategies";
+import { RandomStrategy, EasyStrategy } from "./strategies";
 
 const WS_URL = "ws://localhost:3000/ws";
 
@@ -7,6 +7,7 @@ async function main(argv: string[]) {
 	let amount = 10;
 	let room: string | undefined;
 	let TicksPerSecond = 60;
+	let easy = false;
 
 	for (let i = 1; i < argv.length; i++) {
 		const arg = argv[i];
@@ -28,6 +29,9 @@ async function main(argv: string[]) {
 				TicksPerSecond = 120;
 			}
 		}
+		if (arg === "--easy") {
+			easy = true;
+		}
 	}
 
 	if (!room) {
@@ -46,7 +50,11 @@ async function main(argv: string[]) {
 
 	const bots = new Array<GameBot>(10);
 	for (let i = 0; i < amount; i++) {
-		const bot = new GameBot(i + 1, new RandomStrategy(), WS_URL);
+		const bot = new GameBot(
+			i + 1,
+			easy ? new EasyStrategy() : new RandomStrategy(),
+			WS_URL
+		);
 		bots[i] = bot;
 	}
 

@@ -7,6 +7,7 @@ import {
 	isJoinedMessage,
 	isLeftMessage,
 	isMapMessage,
+	isShotMessage,
 	isStateMessage,
 	Messages,
 } from "./msgs";
@@ -72,6 +73,10 @@ export class GameBot {
 				}
 			} else if (isMapMessage(message)) {
 				this.map = message.data;
+			} else if (isShotMessage(message)) {
+				for (const { x, y, state } of message.data.cells) {
+					this.map!.tiles[y * this.map!.width + x] = state;
+				}
 			} else if (isErrorMessage(message)) {
 				this.log(`Error: ${message.data.message}`);
 			}
@@ -113,6 +118,8 @@ export class GameBot {
 				break;
 			case "look":
 				this.moveMouse(action.at);
+				break;
+			case "idle":
 				break;
 		}
 	}

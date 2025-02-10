@@ -1,3 +1,5 @@
+import type { Direction, Team, Tile } from "../consts";
+
 export enum Messages {
 	MSG_CNCT,
 	MSG_HOST,
@@ -54,7 +56,7 @@ export type StartedMessage = {};
 export type TeamMessage = {};
 
 export type MoveMessage = {
-	direction: "left" | "right" | "up" | "down";
+	direction: Direction;
 	start: boolean;
 };
 export type MovedMessage = {};
@@ -66,7 +68,7 @@ export type ShotMessage = {
 	cells: {
 		x: number;
 		y: number;
-		state: number;
+		state: Tile;
 	}[];
 };
 
@@ -81,7 +83,7 @@ export type ChattedMessage = {
 export type MapMessage = {
 	width: number;
 	height: number;
-	tiles: number[];
+	tiles: Tile[];
 };
 
 export type StateMessage = {
@@ -101,7 +103,7 @@ export type StateMessage = {
 			id: number;
 			username: string;
 		};
-		team: number;
+		team: Team;
 		weapon: number;
 		x: number;
 		y: number;
