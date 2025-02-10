@@ -1,23 +1,42 @@
 import { GameBot } from "./bot";
-import { RandomStrategy, EasyStrategy } from "./strategies";
+import {
+	RandomStrategy,
+	EasyStrategy,
+	// HardStrategy,
+	BotStrategy,
+} from "./strategies";
 
 const WS_URL = "ws://localhost:3000/ws";
+
+type Difficulty = "random" | "easy" | "hard";
 
 async function main(argv: string[]) {
 	let amount = 10;
 	let room: string | undefined;
 	let TicksPerSecond = 60;
-	let easy = false;
+	let diff: Difficulty = "random";
 
 	for (let i = 1; i < argv.length; i++) {
 		const arg = argv[i];
-		if (arg === "--amount" && i + 1 < argv.length) {
+		if (
+			arg.startsWith("-") &&
+			arg.endsWith("amount") &&
+			i + 1 < argv.length
+		) {
 			amount = parseInt(argv[++i]);
 		}
-		if (arg === "--room" && i + 1 < argv.length) {
+		if (
+			arg.startsWith("-") &&
+			arg.endsWith("room") &&
+			i + 1 < argv.length
+		) {
 			room = argv[++i];
 		}
-		if ((arg === "--tps" || arg === "--ticks") && i + 1 < argv.length) {
+		if (
+			((arg.startsWith("-") && arg.endsWith("tps")) ||
+				(arg.startsWith("-") && arg.endsWith("ticks"))) &&
+			i + 1 < argv.length
+		) {
 			TicksPerSecond = parseInt(argv[++i]);
 			if (TicksPerSecond < 1) {
 				console.log("Clamping ticks to 1. Bro Seriously WTF!");
@@ -29,8 +48,22 @@ async function main(argv: string[]) {
 				TicksPerSecond = 120;
 			}
 		}
-		if (arg === "--easy") {
-			easy = true;
+		if (
+			arg.startsWith("-") &&
+			arg.endsWith("difficulty") &&
+			i + 1 < argv.length
+		) {
+			const difficulty = argv[++i].toLowerCase();
+			if (difficulty === "random") {
+				diff = "random";
+			} else if (difficulty === "easy") {
+				diff = "easy";
+			} else if (difficulty === "hard") {
+				diff = "hard";
+				throw new Error("Hard mode not implemented yet");
+			} else {
+				throw new Error("Invalid difficulty");
+			}
 		}
 	}
 
@@ -39,6 +72,12 @@ async function main(argv: string[]) {
 	}
 
 	const TickTime = 1000 / TicksPerSecond;
+	const strategy: new () => BotStrategy =
+		diff === "random"
+			? RandomStrategy
+			: //  diff === "easy" ?
+			  EasyStrategy;
+	// : HardStrategy;
 	let quit = false;
 
 	process.stdin.on("data", (data) => {
@@ -50,11 +89,7 @@ async function main(argv: string[]) {
 
 	const bots = new Array<GameBot>(10);
 	for (let i = 0; i < amount; i++) {
-		const bot = new GameBot(
-			i + 1,
-			easy ? new EasyStrategy() : new RandomStrategy(),
-			WS_URL
-		);
+		const bot = new GameBot(i + 1, new strategy(), WS_URL);
 		bots[i] = bot;
 	}
 
