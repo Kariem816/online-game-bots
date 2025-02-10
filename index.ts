@@ -2,7 +2,7 @@ import { GameBot } from "./bot";
 import {
 	RandomStrategy,
 	EasyStrategy,
-	// HardStrategy,
+	HardStrategy,
 	BotStrategy,
 } from "./strategies";
 
@@ -60,7 +60,7 @@ async function main(argv: string[]) {
 				diff = "easy";
 			} else if (difficulty === "hard") {
 				diff = "hard";
-				throw new Error("Hard mode not implemented yet");
+				// throw new Error("Hard mode not implemented yet");
 			} else {
 				throw new Error("Invalid difficulty");
 			}
@@ -75,9 +75,9 @@ async function main(argv: string[]) {
 	const strategy: new () => BotStrategy =
 		diff === "random"
 			? RandomStrategy
-			: //  diff === "easy" ?
-			  EasyStrategy;
-	// : HardStrategy;
+			: diff === "easy"
+			? EasyStrategy
+			: HardStrategy;
 	let quit = false;
 
 	process.stdin.on("data", (data) => {

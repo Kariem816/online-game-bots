@@ -44,4 +44,4 @@ export interface BotStrategy {
 
 export * from "./random";
 export * from "./easy";
-// export * from "./hard";
+export * from "./hard";
