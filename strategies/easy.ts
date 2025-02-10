@@ -17,36 +17,42 @@ type ShotTile = {
 export class EasyStrategy implements BotStrategy {
 	name = "Easy";
 
+	// Tracks the number of ticks since a given tile was shot.
 	private shotTiles: Record<string, ShotTile> = {};
 
 	getAction(context: BotStrategyContext): Action {
-		const map = context.map;
-		const state = context.state;
+		const { map, state } = context;
 		const player = state.players.find((p) => p.user.id === context.id);
 		if (!player) {
 			throw new Error("Player not found");
 		}
+
 		const teamTile = player.team === Team.TeamA ? Tile.TeamA : Tile.TeamB;
+		const isMoving = player.vx !== 0 || player.vy !== 0;
+
+		const tileId = ({ x, y }: TileWithDimensions): string =>
+			`${x + y * map.width}`;
 
 		// look around to check for paintable tiles
 		const adjacentTiles = this.getAdjacentTiles(map, player.x, player.y);
 		const paintableTiles = adjacentTiles.filter(
-			(tile) => tile.tile !== Tile.Wall && tile.tile !== teamTile
+			(t) => t.tile !== Tile.Wall && t.tile !== teamTile
 		);
 		const paintableNotShotTiles = paintableTiles.filter(
-			(tile) =>
-				(this.shotTiles[tile.x + tile.y * map.width]?.since ?? 0) <= 3
+			(t) => (this.shotTiles[tileId(t)]?.since ?? 0) <= 3
 		);
-		// if there are
+
+		// If there are any adjacent tiles that can be painted...
 		if (paintableNotShotTiles.length > 0) {
-			// check if you are moving
-			if (player.vx !== 0 || player.vy !== 0) {
-				// stop
-				const direction = this.getDirectionFromVelocity(
-					player.vx,
-					player.vy
-				);
-				return { type: "stop", direction };
+			if (isMoving) {
+				// Stop moving before shooting.
+				return {
+					type: "stop",
+					direction: this.getDirectionFromVelocity(
+						player.vx,
+						player.vy
+					),
+				};
 			} else {
 				const targetTile =
 					paintableNotShotTiles[
@@ -58,16 +64,13 @@ export class EasyStrategy implements BotStrategy {
 				);
 				// check if you are looking at them
 				if (Math.abs(player.theta - targetTheta) < Math.PI / 8) {
-					const tileId = targetTile.x + targetTile.y * map.width;
-					if (this.shotTiles[tileId]) {
-						this.shotTiles[tileId].since++;
-					} else {
-						this.shotTiles[tileId] = {
-							tile: targetTile.tile,
-							since: 0,
-						};
-					}
-					// paint it
+					const id = tileId(targetTile);
+					this.shotTiles[id] = this.shotTiles[id]
+						? {
+								tile: targetTile.tile,
+								since: this.shotTiles[id].since + 1,
+						  }
+						: { tile: targetTile.tile, since: 0 };
 					return { type: "shoot" };
 				} else {
 					// look at it
@@ -78,34 +81,32 @@ export class EasyStrategy implements BotStrategy {
 				}
 			}
 		} else {
-			// if you are already moving
-			if (player.vx !== 0 || player.vy !== 0) {
-				const nx = Math.round(player.x + player.vx);
-				const ny = Math.round(player.y + player.vy);
-				if (nx < 0 || nx >= map.width || ny < 0 || ny >= map.height) {
-					// if you are hitting the map boundry
-					const direction = this.getDirectionFromVelocity(
-						player.vx,
-						player.vy
-					);
-					return { type: "stop", direction };
+			// No adjacent paintable tile exists.
+			if (isMoving) {
+				// Determine the next tile based on current velocity.
+				const nextX = Math.round(player.x + player.vx);
+				const nextY = Math.round(player.y + player.vy);
+				if (
+					nextX < 0 ||
+					nextX >= map.width ||
+					nextY < 0 ||
+					nextY >= map.height ||
+					map.tiles[nextY * map.width + nextX] === Tile.Wall
+				) {
+					// If heading out-of-bounds or into a wall, stop.
+					return {
+						type: "stop",
+						direction: this.getDirectionFromVelocity(
+							player.vx,
+							player.vy
+						),
+					};
 				}
-				const nextTile = map.tiles[ny * map.width + nx];
-				if (nextTile === Tile.Wall) {
-					// if you are hitting a wall
-					const direction = this.getDirectionFromVelocity(
-						player.vx,
-						player.vy
-					);
-					return { type: "stop", direction };
-				}
-
-				// keep moving
+				// Otherwise, keep moving.
 				return { type: "idle" };
 			} else {
-				// move in a random direction
-				const direction = this.getRandomDirection();
-				return { type: "move", direction };
+				// Not moving and no adjacent paintable tile? Move in a random direction.
+				return { type: "move", direction: this.getRandomDirection() };
 			}
 		}
 	}
@@ -115,19 +116,26 @@ export class EasyStrategy implements BotStrategy {
 		x: number,
 		y: number
 	): TileWithDimensions[] {
-		const adjacentTiles: TileWithDimensions[] = [];
+		const tiles: TileWithDimensions[] = [];
+		const tileX = Math.round(x);
+		const tileY = Math.round(y);
 		for (let dy = -1; dy <= 1; dy++) {
 			for (let dx = -1; dx <= 1; dx++) {
 				if (dx === 0 && dy === 0) continue;
-				if (x + dx < 0 || x + dx >= map.width) continue;
-				if (y + dy < 0 || y + dy >= map.height) continue;
-				const tx = Math.round(x + dx);
-				const ty = Math.round(y + dy);
-				const tile = map.tiles[ty * map.width + tx];
-				adjacentTiles.push({ tile, x: tx, y: ty });
+				const adjX = tileX + dx;
+				const adjY = tileY + dy;
+				if (
+					adjX < 0 ||
+					adjX >= map.width ||
+					adjY < 0 ||
+					adjY >= map.height
+				)
+					continue;
+				const tile = map.tiles[adjY * map.width + adjX];
+				tiles.push({ tile, x: adjX, y: adjY });
 			}
 		}
-		return adjacentTiles;
+		return tiles;
 	}
 
 	private getRandomDirection(): Direction {
