@@ -12,6 +12,7 @@ export enum Messages {
 	MSG_STARTED,
 	MSG_TEAM,
 	MSG_TEAMED,
+	MSG_WEAPON,
 	MSG_MOVE,
 	MSG_MOVED,
 	MSG_SHOOT,
@@ -89,7 +90,6 @@ export type MapMessage = {
 export type StateMessage = {
 	host: number;
 	room: string;
-	started: boolean;
 	startedAt?: Date;
 	state: {
 		teamA: number;
@@ -110,6 +110,7 @@ export type StateMessage = {
 		vx: number;
 		vy: number;
 		theta: number;
+		cooldown: number;
 	}[];
 };
 

@@ -127,7 +127,6 @@ function decodeMsgData(
 		case Messages.MSG_STATE: {
 			const host = view.getInt16();
 			const room = view.getString(4);
-			const started = view.getBoolean();
 
 			const unix = view.getInt32();
 			let startedAt: Date | undefined;
@@ -160,6 +159,7 @@ function decodeMsgData(
 					vx: view.getInt32(),
 					vy: view.getInt32(),
 					theta: view.getFloat32(),
+					cooldown: view.getUint8(),
 				};
 				players[i].user.username = view.getString(view.getUint8());
 			}
@@ -167,7 +167,6 @@ function decodeMsgData(
 			return {
 				host,
 				room,
-				started,
 				startedAt,
 				state,
 				players,

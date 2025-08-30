@@ -66,7 +66,8 @@ export class GameBot {
 				this.log("Left room");
 			} else if (isStateMessage(message)) {
 				this.gameState = message.data;
-				if (message.data.started) {
+				// TODO: add GamePhases enum
+				if (message.data.state.phase === 2) {
 					this.botGameState = "Playing";
 				} else {
 					this.botGameState = "InRoom";
