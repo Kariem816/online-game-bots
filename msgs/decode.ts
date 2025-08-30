@@ -128,10 +128,12 @@ function decodeMsgData(
 			const host = view.getInt16();
 			const room = view.getString(4);
 
-			const unix = view.getInt32();
-			let startedAt: Date | undefined;
+			const unixSec = view.getInt32();
+            const unixMilli = view.getInt16();
+            const unix = unixSec * 1000 + unixMilli;
+			let startedAt: Date | null = null;
 			if (unix > 0) {
-				startedAt = new Date(unix * 1000);
+				startedAt = new Date(unix);
 			}
 
 			const state: StateMessage["state"] = {
