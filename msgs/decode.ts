@@ -12,6 +12,7 @@ import type {
 	MapMessage,
 	ShotMessage,
 	StateMessage,
+	SyncMessage,
 	SystemMessage,
 	TypedChattedMessage,
 	TypedConnectedMessage,
@@ -174,6 +175,26 @@ function decodeMsgData(
 				players,
 			} as StateMessage;
 		}
+		case Messages.MSG_SYNC: {
+			const gameLength = view.getInt32();
+			const playerSpeed = view.getFloat32();
+			const weaponsLen = view.getUint8();
+			const weapons = new Array<{ id: number; cooldown: number; name: string }>(
+				weaponsLen
+			);
+			for (let i = 0; i < weaponsLen; i++) {
+				weapons[i] = {
+					id: view.getUint8(),
+					cooldown: view.getUint8(),
+					name: view.getString(view.getUint8()),
+				};
+			}
+			return {
+				gameLength,
+				playerSpeed,
+				weapons,
+			} as SyncMessage;
+		}
 		case Messages.MSG_SYSTEM: {
 			const sysTypeIdx = view.getUint8();
 			if (sysTypeIdx >= SystemMessages.length) {
@@ -223,6 +244,7 @@ export function decodeMsg(msg: ArrayBuffer): GenericServerMessage {
 		case Messages.MSG_CHATTED:
 		case Messages.MSG_MAP:
 		case Messages.MSG_STATE:
+		case Messages.MSG_SYNC:
 		case Messages.MSG_SYSTEM:
 		case Messages.MSG_ERROR:
 			return {

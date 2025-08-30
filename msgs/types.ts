@@ -22,6 +22,7 @@ export enum Messages {
 	MSG_MAP,
 	MSG_STATE,
 	MSG_MOUSE,
+	MSG_SYNC,
 	MSG_SYSTEM,
 	MSG_ERROR,
 	length,
@@ -63,8 +64,6 @@ export type MoveMessage = {
 export type MovedMessage = {};
 
 export type ShootMessage = {};
-
-// // TODO: maybe introduce a new structure to hold cells for separation of concerns
 export type ShotMessage = {
 	cells: {
 		x: number;
@@ -119,6 +118,16 @@ export type MouseMessage = {
 	y: number;
 };
 
+export type SyncMessage = {
+	gameLength: number;
+	playerSpeed: number;
+	weapons: {
+		id: number;
+		cooldown: number;
+		name: string;
+	}[];
+};
+
 export type SystemMessage = {
 	type: string;
 	message: string;
@@ -136,6 +145,7 @@ export type DecodeMessageReturn =
 	| ChattedMessage
 	| MapMessage
 	| StateMessage
+	| SyncMessage
 	| SystemMessage
 	| ErrorMessage;
 
@@ -215,6 +225,10 @@ export type TypedMouseMessage = {
 	data: MouseMessage;
 	type: Messages.MSG_MOUSE;
 };
+export type TypedSyncMessage = {
+	data: SyncMessage;
+	type: Messages.MSG_SYNC;
+};
 export type TypedSystemMessage = {
 	data: SystemMessage;
 	type: Messages.MSG_SYSTEM;
@@ -244,5 +258,6 @@ export type GenericServerMessage =
 	| TypedMapMessage
 	| TypedStateMessage
 	| TypedMouseMessage
+	| TypedSyncMessage
 	| TypedSystemMessage
 	| TypedErrorMessage;

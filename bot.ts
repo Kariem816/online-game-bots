@@ -11,6 +11,7 @@ import {
 	isStateMessage,
 	Messages,
 } from "./msgs";
+import { GamePhase } from "./consts";
 import { BotStrategy } from "./strategies";
 
 import type { ConnectedMessage, MapMessage, StateMessage } from "./msgs";
@@ -66,8 +67,7 @@ export class GameBot {
 				this.log("Left room");
 			} else if (isStateMessage(message)) {
 				this.gameState = message.data;
-				// TODO: add GamePhases enum
-				if (message.data.state.phase === 2) {
+				if (message.data.state.phase === GamePhase.Playing) {
 					this.botGameState = "Playing";
 				} else {
 					this.botGameState = "InRoom";
