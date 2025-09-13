@@ -1,8 +1,8 @@
 import fs from "fs";
 import {
-	decodeMsg,
-	encodeMsg,
-	isConnectedMessage,
+	decode,
+	encode,
+	isWelcomeMessage,
 	isErrorMessage,
 	isJoinedMessage,
 	isLeftMessage,
@@ -14,7 +14,7 @@ import {
 import { GamePhase } from "./consts";
 import { BotStrategy } from "./strategies";
 
-import type { ConnectedMessage, MapMessage, StateMessage } from "./msgs";
+import type { WelcomeMessage, MapMessage, StateMessage } from "./msgs";
 
 export type BotState = "Connecting" | "Active" | "Inactive";
 export type BotGameState = "Idle" | "InRoom" | "Playing";
@@ -25,7 +25,7 @@ export class GameBot {
 	botGameState: BotGameState = "Idle";
 	inactiveReason: string | null = null;
 	logFile: number;
-	player: ConnectedMessage | null = null;
+	player: Omit<WelcomeMessage, "settings"> | null = null;
 	gameState: StateMessage | null = null;
 	map: MapMessage | null = null;
 
@@ -55,8 +55,8 @@ export class GameBot {
 			this.botState = "Active";
 		});
 		this.ws.addEventListener("message", (ev) => {
-			const message = decodeMsg(ev.data);
-			if (isConnectedMessage(message)) {
+			const message = decode(ev.data);
+			if (isWelcomeMessage(message)) {
 				this.player = message.data;
 				this.log(`Playing as ${message.data.username}`);
 			} else if (isJoinedMessage(message)) {
@@ -129,7 +129,7 @@ export class GameBot {
 		if (this.botState !== "Active") return;
 		if (this.botGameState === "Idle")
 			return this.log("Asked to leave while idle");
-		this.ws.send(encodeMsg({ type: Messages.MSG_LEAVE, data: {} }));
+		this.ws.send(encode(Messages.MSG_LEAVE));
 		this.log("Sent leave");
 	}
 
@@ -137,7 +137,7 @@ export class GameBot {
 		if (this.botState !== "Active") return;
 		if (this.botGameState === "InRoom")
 			return this.log("Asked to join while in room");
-		this.ws.send(encodeMsg({ type: Messages.MSG_JOIN, data: { room } }));
+		this.ws.send(encode(Messages.MSG_JOIN, { room }));
 		this.log(`Sent join ${room}`);
 	}
 
@@ -148,39 +148,19 @@ export class GameBot {
 	}
 
 	startMoving(direction: "left" | "right" | "up" | "down") {
-		this.ws.send(
-			encodeMsg({
-				type: Messages.MSG_MOVE,
-				data: { direction, start: true },
-			})
-		);
+		this.ws.send(encode(Messages.MSG_MOVE, { direction, start: true }));
 	}
 
 	stopMoving(direction: "left" | "right" | "up" | "down") {
-		this.ws.send(
-			encodeMsg({
-				type: Messages.MSG_MOVE,
-				data: { direction, start: false },
-			})
-		);
+		this.ws.send(encode(Messages.MSG_MOVE, { direction, start: false }));
 	}
 
 	moveMouse(to: { x: number; y: number }) {
-		this.ws.send(
-			encodeMsg({
-				type: Messages.MSG_MOUSE,
-				data: to,
-			})
-		);
+		this.ws.send(encode(Messages.MSG_MOUSE, to));
 	}
 
 	shoot() {
-		this.ws.send(
-			encodeMsg({
-				type: Messages.MSG_SHOOT,
-				data: {},
-			})
-		);
+		this.ws.send(encode(Messages.MSG_SHOOT));
 	}
 
 	get botName() {

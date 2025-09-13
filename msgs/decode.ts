@@ -1,21 +1,19 @@
-import { Messages, SystemMessages } from "./types";
+import { Messages, SystemMessageType } from "./types";
 
 import type {
 	ChattedMessage,
-	ConnectedMessage,
+	WelcomeMessage,
 	DecodeMessageReturn,
 	ErrorMessage,
 	GenericServerMessage,
 	HostedMessage,
 	JoinedMessage,
-	LeftMessage,
 	MapMessage,
 	ShotMessage,
 	StateMessage,
-	SyncMessage,
 	SystemMessage,
 	TypedChattedMessage,
-	TypedConnectedMessage,
+	TypedWelcomeMessage,
 	TypedErrorMessage,
 	TypedHostedMessage,
 	TypedJoinedMessage,
@@ -24,10 +22,11 @@ import type {
 	TypedShotMessage,
 	TypedStateMessage,
 	TypedSystemMessage,
+	SettingsMessageWeapon,
 } from "./types";
 
 class StatedDataView {
-	constructor(private view: DataView<ArrayBuffer>, private offset = 0) {}
+	constructor(private view: DataView<ArrayBuffer>, private offset = 0) { }
 
 	getUint8() {
 		const uint8 = this.view.getUint8(this.offset);
@@ -36,7 +35,7 @@ class StatedDataView {
 	}
 
 	getBoolean() {
-		const boolean = this.view.getUint8(this.offset) === 1;
+		const boolean = this.view.getUint8(this.offset) !== 1;
 		this.offset += 1;
 		return boolean;
 	}
@@ -49,6 +48,12 @@ class StatedDataView {
 
 	getInt32() {
 		const int32 = this.view.getInt32(this.offset, true);
+		this.offset += 4;
+		return int32;
+	}
+
+	getUint32() {
+		const int32 = this.view.getUint32(this.offset, true);
 		this.offset += 4;
 		return int32;
 	}
@@ -83,13 +88,29 @@ function decodeMsgData(
 	msgType: Messages
 ): DecodeMessageReturn {
 	switch (msgType) {
-		case Messages.MSG_CNCT: {
+		case Messages.MSG_WLCM: {
 			const id = view.getInt16();
 			const username = view.getString(view.getUint8());
+			const gameLength = view.getInt32();
+			const playerSpeed = view.getFloat32();
+			const weaponsLen = view.getUint8();
+			const weapons = new Array<SettingsMessageWeapon>(weaponsLen);
+			for (let i = 0; i < weaponsLen; i++) {
+				weapons[i] = {
+					id: view.getUint8(),
+					cooldown: view.getUint32(),
+					name: view.getString(view.getUint8()),
+				};
+			}
 			return {
 				id,
 				username,
-			} as ConnectedMessage;
+				settings: {
+					gameLength,
+					playerSpeed,
+					weapons,
+				}
+			} as WelcomeMessage;
 		}
 		case Messages.MSG_HOSTED: {
 			const room = view.getString(4);
@@ -100,7 +121,7 @@ function decodeMsgData(
 			return { room } as JoinedMessage;
 		}
 		case Messages.MSG_LEFT:
-			return {} as LeftMessage;
+			return;
 		case Messages.MSG_SHOT: {
 			const length = view.getUint8();
 			const cells = new Array(length);
@@ -130,8 +151,8 @@ function decodeMsgData(
 			const room = view.getString(4);
 
 			const unixSec = view.getInt32();
-            const unixMilli = view.getInt16();
-            const unix = unixSec * 1000 + unixMilli;
+			const unixMilli = view.getInt16();
+			const unix = unixSec * 1000 + unixMilli;
 			let startedAt: Date | null = null;
 			if (unix > 0) {
 				startedAt = new Date(unix);
@@ -175,37 +196,16 @@ function decodeMsgData(
 				players,
 			} as StateMessage;
 		}
-		case Messages.MSG_SYNC: {
-			const gameLength = view.getInt32();
-			const playerSpeed = view.getFloat32();
-			const weaponsLen = view.getUint8();
-			const weapons = new Array<{ id: number; cooldown: number; name: string }>(
-				weaponsLen
-			);
-			for (let i = 0; i < weaponsLen; i++) {
-				weapons[i] = {
-					id: view.getUint8(),
-					cooldown: view.getUint8(),
-					name: view.getString(view.getUint8()),
-				};
-			}
-			return {
-				gameLength,
-				playerSpeed,
-				weapons,
-			} as SyncMessage;
-		}
 		case Messages.MSG_SYSTEM: {
 			const sysTypeIdx = view.getUint8();
-			if (sysTypeIdx >= SystemMessages.length) {
+			if (sysTypeIdx >= SystemMessageType.length) {
 				throw new Error("Unknown System Message " + sysTypeIdx);
 			}
-			const sysType = SystemMessages[sysTypeIdx];
 
 			const message = view.getString(view.getUint8());
 
 			return {
-				type: sysType,
+				type: sysTypeIdx,
 				message,
 			} as SystemMessage;
 		}
@@ -227,7 +227,7 @@ function decodeMsgData(
 	}
 }
 
-export function decodeMsg(msg: ArrayBuffer): GenericServerMessage {
+export function decode(msg: ArrayBuffer): GenericServerMessage {
 	const msgType = new Uint8Array(msg, 0)[0];
 	if (msgType >= Messages.length) {
 		throw new Error("Unknown Message " + msgType);
@@ -236,7 +236,7 @@ export function decodeMsg(msg: ArrayBuffer): GenericServerMessage {
 	const view = new StatedDataView(new DataView(msg, 1));
 
 	switch (msgType) {
-		case Messages.MSG_CNCT:
+		case Messages.MSG_WLCM:
 		case Messages.MSG_HOSTED:
 		case Messages.MSG_JOINED:
 		case Messages.MSG_LEFT:
@@ -244,7 +244,6 @@ export function decodeMsg(msg: ArrayBuffer): GenericServerMessage {
 		case Messages.MSG_CHATTED:
 		case Messages.MSG_MAP:
 		case Messages.MSG_STATE:
-		case Messages.MSG_SYNC:
 		case Messages.MSG_SYSTEM:
 		case Messages.MSG_ERROR:
 			return {
@@ -266,10 +265,10 @@ export function decodeMsg(msg: ArrayBuffer): GenericServerMessage {
 	}
 }
 
-export function isConnectedMessage(
+export function isWelcomeMessage(
 	message: GenericServerMessage
-): message is TypedConnectedMessage {
-	return message.type === Messages.MSG_CNCT;
+): message is TypedWelcomeMessage {
+	return message.type === Messages.MSG_WLCM;
 }
 
 export function isHostedMessage(

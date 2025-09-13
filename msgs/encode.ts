@@ -1,43 +1,46 @@
 import { Messages } from "./types";
 
-import type {
-	ChatMessage,
-	GenericServerMessage,
-	JoinMessage,
-	MouseMessage,
-	MoveMessage,
-} from "./types";
+import type { GenericServerMessage } from "./types";
 
-export function encodeMsg(msg: GenericServerMessage): Uint8Array {
+function encode_impl(msg: GenericServerMessage): Uint8Array {
 	if (msg.type >= Messages.length) {
 		throw new Error("Unknown message type" + msg.type);
 	}
-	const type = Messages[msg.type];
 
-	switch (type) {
-		case "MSG_HOST":
-		case "MSG_LEAVE":
-		case "MSG_START":
-		case "MSG_TEAM":
-		case "MSG_SHOOT": {
+	switch (msg.type) {
+		case Messages.MSG_HOST:
+		case Messages.MSG_LEAVE:
+		case Messages.MSG_START:
+		case Messages.MSG_TEAM:
+		case Messages.MSG_SHOOT: {
 			const buf = new Uint8Array(1);
 			buf[0] = msg.type;
 			return buf;
 		}
-		case "MSG_JOIN": {
-			const data = msg.data as JoinMessage;
+		case Messages.MSG_JOIN: {
+			const data = msg.data;
 			const buf = new Uint8Array(5);
 			buf[0] = msg.type;
 			const { room } = data;
 			if (room.length > 4) {
-				throw new Error("Room name too long");
+				console.warn("Room name too long. Truncating...");
+			} else if (room.length < 4) {
+				console.warn("Room name too short. Padding...");
+				room.padEnd(4, " ");
 			}
-			const roomBuf = new TextEncoder().encode(room);
+			const roomBuf = new TextEncoder().encode(room.slice(0, 4));
 			buf.set(roomBuf, 1);
 			return buf;
 		}
-		case "MSG_MOVE": {
-			const data = msg.data as MoveMessage;
+		case Messages.MSG_WEAPON: {
+			const { weapon } = msg.data;
+			const buf = new Uint8Array(2);
+			buf[0] = msg.type;
+			buf[1] = weapon;
+			return buf;
+		}
+		case Messages.MSG_MOVE: {
+			const data = msg.data;
 			const { direction, start } = data;
 			const buf = new Uint8Array(2);
 			buf[0] = msg.type;
@@ -62,21 +65,21 @@ export function encodeMsg(msg: GenericServerMessage): Uint8Array {
 			buf[1] = flags;
 			return buf;
 		}
-		case "MSG_CHAT": {
-			const data = msg.data as ChatMessage;
+		case Messages.MSG_CHAT: {
+			const data = msg.data;
 			const sz = data.message.length;
 			if (sz > 255) {
-				throw new Error("Message too long");
+				console.warn("Message too long. Truncating...");
 			}
-			const buf = new Uint8Array(sz + 1 + 1); // for type and size
+			const buf = new Uint8Array((sz > 255 ? 255 : sz) + 1 + 1); // for type and size
 			buf[0] = msg.type;
 			buf[1] = sz;
 			const msgBuf = new TextEncoder().encode(data.message);
 			buf.set(msgBuf, 2);
 			return buf;
 		}
-		case "MSG_MOUSE": {
-			const data = msg.data as MouseMessage;
+		case Messages.MSG_MOUSE: {
+			const data = msg.data;
 			const { x, y } = data;
 
 			const buf = new ArrayBuffer(9);
@@ -87,18 +90,38 @@ export function encodeMsg(msg: GenericServerMessage): Uint8Array {
 
 			return new Uint8Array(buf);
 		}
-		case "MSG_CNCT":
-		case "MSG_HOSTED":
-		case "MSG_JOINED":
-		case "MSG_LEFT":
-		case "MSG_STARTED":
-		case "MSG_SHOT":
-		case "MSG_CHATTED":
-		case "MSG_MAP":
-		case "MSG_STATE":
-		case "MSG_SYSTEM":
-		case "MSG_ERROR":
+		case Messages.MSG_WLCM:
+		case Messages.MSG_HOSTED:
+		case Messages.MSG_JOINED:
+		case Messages.MSG_LEFT:
+		case Messages.MSG_STARTED:
+		case Messages.MSG_SHOT:
+		case Messages.MSG_CHATTED:
+		case Messages.MSG_MAP:
+		case Messages.MSG_STATE:
+		case Messages.MSG_SYSTEM:
+		case Messages.MSG_ERROR:
 		default:
 			throw new Error("Not Sendable " + msg.type);
 	}
+}
+
+export function encode<T extends GenericServerMessage["type"]>(
+	t: T,
+	...args: Extract<
+		GenericServerMessage,
+		{ type: T }
+	>["data"] extends undefined
+		? []
+		: [Extract<GenericServerMessage, { type: T }>["data"]]
+) {
+	const data = (args[0] ?? undefined) as Extract<
+		GenericServerMessage,
+		{ type: T }
+	>["data"];
+
+	return encode_impl({ type: t, data } as Extract<
+		GenericServerMessage,
+		{ type: T }
+	>);
 }

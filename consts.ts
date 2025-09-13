@@ -19,3 +19,8 @@ export enum GamePhase {
 	Playing,
 	GameOver,
 };
+
+export enum TWeapon {
+	WEAPON_GUN,
+	WEAPON_BOMB,
+};

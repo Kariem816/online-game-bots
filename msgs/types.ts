@@ -1,7 +1,7 @@
-import type { Direction, Team, Tile } from "../consts";
+import type { Direction, Team, Tile, TWeapon } from "../consts";
 
 export enum Messages {
-	MSG_CNCT,
+	MSG_WLCM,
 	MSG_HOST,
 	MSG_HOSTED,
 	MSG_JOIN,
@@ -22,22 +22,30 @@ export enum Messages {
 	MSG_MAP,
 	MSG_STATE,
 	MSG_MOUSE,
-	MSG_SYNC,
 	MSG_SYSTEM,
 	MSG_ERROR,
 	length,
 }
-export enum SystemMessages {
+export enum SystemMessageType {
 	SYS_MSG_INFO,
+	SYS_MSG_ERROR,
+	SYS_MSG_SUCCESS,
 	length,
 }
 
-export type ConnectedMessage = {
-	id: number;
-	username: string;
+export type GameSettings = {
+	gameLength: number;
+	playerSpeed: number;
+	weapons: SettingsMessageWeapon[];
 };
 
-export type HostMessage = {};
+export type WelcomeMessage = {
+	id: number;
+	username: string;
+	settings: GameSettings;
+};
+
+export type HostMessage = undefined;
 export type HostedMessage = {
 	room: string;
 };
@@ -49,27 +57,34 @@ export type JoinedMessage = {
 	room: string;
 };
 
-export type LeaveMessage = {};
-export type LeftMessage = {};
+export type LeaveMessage = undefined;
+export type LeftMessage = undefined;
 
-export type StartMessage = {};
-export type StartedMessage = {};
+export type StartMessage = undefined;
+export type StartedMessage = undefined;
 
-export type TeamMessage = {};
+export type TeamMessage = undefined;
+
+export type WeaponMessage = {
+	weapon: TWeapon;
+}
 
 export type MoveMessage = {
 	direction: Direction;
 	start: boolean;
 };
-export type MovedMessage = {};
+export type MovedMessage = undefined;
 
-export type ShootMessage = {};
+export type ShootMessage = undefined;
+
+export type CellResult = {
+	x: number;
+	y: number;
+	state: Tile;
+};
+
 export type ShotMessage = {
-	cells: {
-		x: number;
-		y: number;
-		state: Tile;
-	}[];
+	cells: CellResult[];
 };
 
 export type ChatMessage = {
@@ -103,7 +118,7 @@ export type StateMessage = {
 			username: string;
 		};
 		team: Team;
-		weapon: number;
+		weapon: TWeapon;
 		x: number;
 		y: number;
 		vx: number;
@@ -118,18 +133,14 @@ export type MouseMessage = {
 	y: number;
 };
 
-export type SyncMessage = {
-	gameLength: number;
-	playerSpeed: number;
-	weapons: {
-		id: number;
-		cooldown: number;
-		name: string;
-	}[];
+export type SettingsMessageWeapon = {
+	id: number;
+	cooldown: number;
+	name: string;
 };
 
 export type SystemMessage = {
-	type: string;
+	type: SystemMessageType;
 	message: string;
 };
 export type ErrorMessage = {
@@ -137,7 +148,7 @@ export type ErrorMessage = {
 };
 
 export type DecodeMessageReturn =
-	| ConnectedMessage
+	| WelcomeMessage
 	| HostedMessage
 	| JoinedMessage
 	| LeftMessage
@@ -145,13 +156,12 @@ export type DecodeMessageReturn =
 	| ChattedMessage
 	| MapMessage
 	| StateMessage
-	| SyncMessage
 	| SystemMessage
 	| ErrorMessage;
 
-export type TypedConnectedMessage = {
-	data: ConnectedMessage;
-	type: Messages.MSG_CNCT;
+export type TypedWelcomeMessage = {
+	data: WelcomeMessage;
+	type: Messages.MSG_WLCM;
 };
 export type TypedHostMessage = {
 	data: HostMessage;
@@ -189,6 +199,10 @@ export type TypedTeamMessage = {
 	data: TeamMessage;
 	type: Messages.MSG_TEAM;
 };
+export type TypedWeaponMessage = {
+	data: WeaponMessage;
+	type: Messages.MSG_WEAPON;
+};
 export type TypedMoveMessage = {
 	data: MoveMessage;
 	type: Messages.MSG_MOVE;
@@ -225,10 +239,6 @@ export type TypedMouseMessage = {
 	data: MouseMessage;
 	type: Messages.MSG_MOUSE;
 };
-export type TypedSyncMessage = {
-	data: SyncMessage;
-	type: Messages.MSG_SYNC;
-};
 export type TypedSystemMessage = {
 	data: SystemMessage;
 	type: Messages.MSG_SYSTEM;
@@ -239,7 +249,7 @@ export type TypedErrorMessage = {
 };
 
 export type GenericServerMessage =
-	| TypedConnectedMessage
+	| TypedWelcomeMessage
 	| TypedHostMessage
 	| TypedHostedMessage
 	| TypedJoinMessage
@@ -249,6 +259,7 @@ export type GenericServerMessage =
 	| TypedStartMessage
 	| TypedStartedMessage
 	| TypedTeamMessage
+	| TypedWeaponMessage
 	| TypedMoveMessage
 	| TypedMovedMessage
 	| TypedShootMessage
@@ -258,6 +269,5 @@ export type GenericServerMessage =
 	| TypedMapMessage
 	| TypedStateMessage
 	| TypedMouseMessage
-	| TypedSyncMessage
 	| TypedSystemMessage
 	| TypedErrorMessage;
