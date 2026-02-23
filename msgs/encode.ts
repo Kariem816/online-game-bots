@@ -1,8 +1,10 @@
 import { Messages } from "./types";
 
-import type { GenericServerMessage } from "./types";
+import type {
+	GenericClientMessage,
+} from "./types";
 
-function encode_impl(msg: GenericServerMessage): Uint8Array {
+function encode_impl(msg: GenericClientMessage): Uint8Array {
 	if (msg.type >= Messages.length) {
 		throw new Error("Unknown message type" + msg.type);
 	}
@@ -12,10 +14,23 @@ function encode_impl(msg: GenericServerMessage): Uint8Array {
 		case Messages.MSG_LEAVE:
 		case Messages.MSG_START:
 		case Messages.MSG_TEAM:
-		case Messages.MSG_SHOOT: {
+		case Messages.MSG_MOUSEPRESS:
+		case Messages.MSG_MOUSERELEASE: {
 			const buf = new Uint8Array(1);
 			buf[0] = msg.type;
 			return buf;
+		}
+		case Messages.MSG_MOUSEMOVE: {
+			const data = msg.data;
+			const { x, y } = data;
+
+			const buf = new ArrayBuffer(9);
+			const view = new DataView(buf);
+			view.setUint8(0, msg.type);
+			view.setInt32(1, x, true);
+			view.setInt32(5, y, true);
+
+			return new Uint8Array(buf);
 		}
 		case Messages.MSG_JOIN: {
 			const data = msg.data;
@@ -78,50 +93,27 @@ function encode_impl(msg: GenericServerMessage): Uint8Array {
 			buf.set(msgBuf, 2);
 			return buf;
 		}
-		case Messages.MSG_MOUSE: {
-			const data = msg.data;
-			const { x, y } = data;
-
-			const buf = new ArrayBuffer(9);
-			const view = new DataView(buf);
-			view.setUint8(0, msg.type);
-			view.setInt32(1, x, true);
-			view.setInt32(5, y, true);
-
-			return new Uint8Array(buf);
-		}
-		case Messages.MSG_WLCM:
-		case Messages.MSG_HOSTED:
-		case Messages.MSG_JOINED:
-		case Messages.MSG_LEFT:
-		case Messages.MSG_STARTED:
-		case Messages.MSG_SHOT:
-		case Messages.MSG_CHATTED:
-		case Messages.MSG_MAP:
-		case Messages.MSG_STATE:
-		case Messages.MSG_SYSTEM:
-		case Messages.MSG_ERROR:
 		default:
-			throw new Error("Not Sendable " + msg.type);
+			throw new Error("Unreachable code :: GenericClientMessage");
 	}
 }
 
-export function encode<T extends GenericServerMessage["type"]>(
+export function encode<T extends GenericClientMessage["type"]>(
 	t: T,
 	...args: Extract<
-		GenericServerMessage,
+		GenericClientMessage,
 		{ type: T }
 	>["data"] extends undefined
 		? []
-		: [Extract<GenericServerMessage, { type: T }>["data"]]
+		: [Extract<GenericClientMessage, { type: T }>["data"]]
 ) {
 	const data = (args[0] ?? undefined) as Extract<
-		GenericServerMessage,
+		GenericClientMessage,
 		{ type: T }
 	>["data"];
 
 	return encode_impl({ type: t, data } as Extract<
-		GenericServerMessage,
+		GenericClientMessage,
 		{ type: T }
 	>);
 }

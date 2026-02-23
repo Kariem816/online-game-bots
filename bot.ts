@@ -18,6 +18,7 @@ import type { WelcomeMessage, MapMessage, StateMessage } from "./msgs";
 
 export type BotState = "Connecting" | "Active" | "Inactive";
 export type BotGameState = "Idle" | "InRoom" | "Playing";
+type Task = () => void;
 
 export class GameBot {
 	ws: WebSocket;
@@ -28,8 +29,9 @@ export class GameBot {
 	player: Omit<WelcomeMessage, "settings"> | null = null;
 	gameState: StateMessage | null = null;
 	map: MapMessage | null = null;
+	backlog: Task[] = [];
 
-	constructor(public id: number, public strategy: BotStrategy, url: string) {
+	public constructor(public id: number, public strategy: BotStrategy, url: string) {
 		this.ws = new WebSocket(url);
 		this.ws.binaryType = "arraybuffer";
 		this.setupListeners();
@@ -42,7 +44,7 @@ export class GameBot {
 		fs.appendFileSync(this.logFile, "Connecting...\n");
 	}
 
-	setupListeners() {
+	private setupListeners() {
 		this.ws.addEventListener("error", (ev) => {
 			// @ts-expect-error bun types are bad
 			this.log(`Error: ${ev.message}`);
@@ -84,7 +86,7 @@ export class GameBot {
 		});
 	}
 
-	async connect(): Promise<void> {
+	public async connect(): Promise<void> {
 		while (this.botState === "Connecting") {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
@@ -93,11 +95,16 @@ export class GameBot {
 		}
 	}
 
-	log(data: string) {
+	private log(data: string) {
 		fs.appendFileSync(this.logFile, `${data}\n`);
 	}
 
-	update() {
+	public update() {
+		while (this.backlog.length > 0) {
+			const task = this.backlog.shift()!;
+			task();
+		}
+
 		if (this.botState !== "Active") return;
 		if (this.botGameState !== "Playing") return;
 
@@ -125,7 +132,7 @@ export class GameBot {
 		}
 	}
 
-	leave() {
+	public leave() {
 		if (this.botState !== "Active") return;
 		if (this.botGameState === "Idle")
 			return this.log("Asked to leave while idle");
@@ -133,7 +140,7 @@ export class GameBot {
 		this.log("Sent leave");
 	}
 
-	join(room: string) {
+	public join(room: string) {
 		if (this.botState !== "Active") return;
 		if (this.botGameState === "InRoom")
 			return this.log("Asked to join while in room");
@@ -141,26 +148,33 @@ export class GameBot {
 		this.log(`Sent join ${room}`);
 	}
 
-	close() {
+	public close() {
 		this.ws.close(1000);
 		this.log("Closed");
 		fs.closeSync(this.logFile);
 	}
 
-	startMoving(direction: "left" | "right" | "up" | "down") {
+	private startMoving(direction: "left" | "right" | "up" | "down") {
 		this.ws.send(encode(Messages.MSG_MOVE, { direction, start: true }));
 	}
 
-	stopMoving(direction: "left" | "right" | "up" | "down") {
+	private stopMoving(direction: "left" | "right" | "up" | "down") {
 		this.ws.send(encode(Messages.MSG_MOVE, { direction, start: false }));
 	}
 
-	moveMouse(to: { x: number; y: number }) {
-		this.ws.send(encode(Messages.MSG_MOUSE, to));
+	private moveMouse(to: { x: number; y: number }) {
+		this.ws.send(encode(Messages.MSG_MOUSEMOVE, to));
 	}
 
-	shoot() {
-		this.ws.send(encode(Messages.MSG_SHOOT));
+	private shoot() {
+		this.ws.send(encode(Messages.MSG_MOUSEPRESS));
+		this.scheduleTask(() => {
+			this.ws.send(encode(Messages.MSG_MOUSERELEASE));
+		});
+	}
+
+	private scheduleTask(task: Task) {
+		this.backlog.push(task);
 	}
 
 	get botName() {
