@@ -22,7 +22,7 @@ export class EasyStrategy implements BotStrategy {
 
 	getAction(context: BotStrategyContext): Action {
 		const { map, state } = context;
-		const player = state.players.find((p) => p.user.id === context.id);
+		const player = state.players.find((p) => p.id === context.id);
 		if (!player) {
 			throw new Error("Player not found");
 		}

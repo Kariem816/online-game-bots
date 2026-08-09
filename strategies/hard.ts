@@ -17,7 +17,7 @@ export class HardStrategy implements BotStrategy {
 	getAction(context: BotStrategyContext): Action {
 		const { map, state } = context;
 		const player = state.players.find(
-			(p) => p.user.id === context.id
+			(p) => p.id === context.id
 		) as Player;
 		if (!player) {
 			throw new Error("Player not found");
