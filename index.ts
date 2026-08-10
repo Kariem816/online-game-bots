@@ -1,4 +1,5 @@
 import { GameBot } from "./bot";
+import { BotManager } from "./manager";
 import {
 	RandomStrategy,
 	EasyStrategy,
@@ -72,12 +73,12 @@ async function main(argv: string[]) {
 	}
 
 	const TickTime = 1000 / TicksPerSecond;
-	const strategy: new () => BotStrategy =
+	const strategy: BotStrategy =
 		diff === "random"
-			? RandomStrategy
+			? new RandomStrategy()
 			: diff === "easy"
-			? EasyStrategy
-			: HardStrategy;
+			? new EasyStrategy()
+			: new HardStrategy();
 	let quit = false;
 
 	process.stdin.on("data", (data) => {
@@ -87,39 +88,20 @@ async function main(argv: string[]) {
 		}
 	});
 
-	const bots = new Array<GameBot>(10);
-	for (let i = 0; i < amount; i++) {
-		const bot = new GameBot(i + 1, new strategy(), WS_URL);
-		bots[i] = bot;
-	}
-
-	await Promise.all(
-		bots.map((bot) => {
-			return bot.connect();
-		})
-	).catch((err) => {
-		console.error(err);
-		bots.forEach((bot) => {
-			bot.close();
-		});
+	const botManager = new BotManager(strategy, amount, room, WS_URL);
+	if (!await botManager.setup()) {
+		console.error("Failed to setup bots. Exiting...");
+		await botManager.shutdown();
 		process.exit(1);
-	});
-
-	bots.forEach((bot) => {
-		bot.join(room);
-	});
-
-	await new Promise((resolve) => setTimeout(resolve, 1000));
+	}
 
 	while (!quit) {
 		await new Promise((resolve) => setTimeout(resolve, TickTime));
-		bots.forEach((bot) => bot.update());
+		botManager.update();
 	}
 
 	await new Promise((resolve) => setTimeout(resolve, 50));
-	bots.forEach((bot) => {
-		bot.close();
-	});
+	await botManager.shutdown();
 
 	process.exit(0);
 }
