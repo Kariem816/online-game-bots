@@ -4,7 +4,7 @@ import type {
 	GenericClientMessage,
 } from "./types";
 
-export function encode_impl(msg: GenericClientMessage): Uint8Array<ArrayBuffer> {
+function encode_impl(msg: GenericClientMessage): Uint8Array<ArrayBuffer> {
 	if (msg.type >= Messages.length) {
 		throw new Error("Unknown message type" + msg.type);
 	}
